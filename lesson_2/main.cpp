@@ -50,7 +50,7 @@ bool test_point(int x, int y, Vec2i *pts){
     float u = (dot11 * dot02 - dot01 * dot12) * invDenom;
     float v = (dot00 * dot12 - dot01 * dot02) * invDenom;
 
-    return (u >= 0) && (v >= 0) && (u + v < 1); 
+    return (u >= 0) && (v >= 0) && (u + v <= 1); 
 }
 
 void triangle(Vec2i *pts, TGAImage &image, TGAColor color) {
