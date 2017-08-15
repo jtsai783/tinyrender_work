@@ -34,11 +34,11 @@ void line(Vec2i p0, Vec2i p1, TGAImage &image, TGAColor color) {
     }
 }
 
-void bary(int x, int y, Vec3i *pts, float *bc){
-    Vec3i v0 = pts[1] - pts[0];
-    Vec3i v1 = pts[2] - pts[0];
-    Vec3i P = Vec3i(x,y, 0);
-    Vec3i v2 = P - pts[0];
+void bary(int x, int y, Vec3f *pts, float *bc){
+    Vec3f v0 = pts[1] - pts[0];
+    Vec3f v1 = pts[2] - pts[0];
+    Vec3f P = Vec3f(x,y, 0);
+    Vec3f v2 = P - pts[0];
 
     float dot00 = v0.x * v0.x + v0.y * v0.y;
     float dot01 = v0.x * v1.x + v0.y * v1.y;
@@ -56,7 +56,7 @@ void bary(int x, int y, Vec3i *pts, float *bc){
     // return (u >= 0) && (v >= 0) && (u + v <= 1); 
 }
 
-void triangle(float *zbuffer, Vec3i *pts, TGAImage &image, TGAColor color) {
+void triangle(float *zbuffer, Vec3f *pts, TGAImage &image, TGAColor color) {
     //find bounding box
     int y_max = pts[0].y;
     int y_min = pts[0].y;
@@ -95,9 +95,19 @@ void triangle(float *zbuffer, Vec3i *pts, TGAImage &image, TGAColor color) {
             float bc[3];
             bary(x, y, pts, bc);
             //calculate z-value of the point
-            
+
+
             if((bc[0] >= 0) && (bc[1] >= 0) && (bc[2] >= 0)){
-                float z = bc[0] * pts[0].z + bc[1] * pts[1].z + bc[2] * pts[2].z;
+                // std::cout << pts[0];
+                float z = bc[0] * (float)pts[0].z + bc[1] * (float)pts[1].z + bc[2] * (float)pts[2].z;
+                    // std::cout << bc[0];
+                    // std::cout << " ";
+                    // std::cout << bc[1];
+                    // std::cout << " ";
+                    // std::cout << bc[2];
+                    // std::cout << "\n";
+                    // std::cout << z;
+                    // std::cout << "\n";
                 if(zbuffer[x + y * width] < z){
                     zbuffer[x + y * width] = z;
                     image.set(x,y,color);    
@@ -138,11 +148,11 @@ int main(int argc, char** argv) {
     Vec3f light_dir(0,0,-1);
     for (int i=0; i<model->nfaces(); i++) { 
         std::vector<int> face = model->face(i); 
-        Vec3i screen_coords[3]; 
+        Vec3f screen_coords[3]; 
         Vec3f world_coords[3]; 
         for (int j=0; j<3; j++) { 
             Vec3f v = model->vert(face[j]); 
-            screen_coords[j] = Vec3i((v.x+1.)*width/2., (v.y+1.)*height/2., v.z); 
+            screen_coords[j] = Vec3f((v.x+1.)*width/2., (v.y+1.)*height/2., v.z); 
             world_coords[j]  = v; 
         } 
         Vec3f n = (world_coords[2]-world_coords[0])^(world_coords[1]-world_coords[0]); 
