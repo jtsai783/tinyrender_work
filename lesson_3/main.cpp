@@ -57,7 +57,11 @@ void bary(int x, int y, Vec3f *pts, float *bc){
     // return (u >= 0) && (v >= 0) && (u + v <= 1); 
 }
 
+<<<<<<< HEAD
 void triangle(Vec3f *texture_coords, float *zbuffer, Vec3f *pts, TGAImage &image, TGAImage &texture_img, TGAColor color) {
+=======
+void triangle(float *zbuffer, Vec3f *pts, TGAImage &image, TGAColor color) {
+>>>>>>> b0f3e228c4398ce102906d21ac9210a3d8d16e16
     //find bounding box
     int y_max = pts[0].y;
     int y_min = pts[0].y;
@@ -102,10 +106,24 @@ void triangle(Vec3f *texture_coords, float *zbuffer, Vec3f *pts, TGAImage &image
             float bc[3];
             bary(x, y, pts, bc);
             //calculate z-value of the point
-            
+
+
             if((bc[0] >= 0) && (bc[1] >= 0) && (bc[2] >= 0)){
+<<<<<<< HEAD
                 float z = bc[0] * pts[0].z + bc[1] * pts[1].z + bc[2] * pts[2].z;
                 // std::cout << z << std::endl;
+=======
+                // std::cout << pts[0];
+                float z = bc[0] * (float)pts[0].z + bc[1] * (float)pts[1].z + bc[2] * (float)pts[2].z;
+                    // std::cout << bc[0];
+                    // std::cout << " ";
+                    // std::cout << bc[1];
+                    // std::cout << " ";
+                    // std::cout << bc[2];
+                    // std::cout << "\n";
+                    // std::cout << z;
+                    // std::cout << "\n";
+>>>>>>> b0f3e228c4398ce102906d21ac9210a3d8d16e16
                 if(zbuffer[x + y * width] < z){
                     zbuffer[x + y * width] = z;
                     
@@ -153,6 +171,7 @@ int main(int argc, char** argv) {
     for (int i=width*height; i--; zbuffer[i] = -std::numeric_limits<float>::max());
 
     Vec3f light_dir(0,0,-1);
+
     for (int i= 0; i<model->nfaces(); i++) { 
         std::vector<int> face = model->face(i);
         std::vector<int> texture_face = model->texture_face(i);
@@ -168,6 +187,7 @@ int main(int argc, char** argv) {
             texture_coords[j] = vt;
             // std::cout << vt;
         }
+
         Vec3f n = (world_coords[2]-world_coords[0])^(world_coords[1]-world_coords[0]); 
         n.normalize(); 
         float intensity = n*light_dir; 
