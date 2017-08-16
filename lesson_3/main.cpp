@@ -9,6 +9,7 @@ const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
 const TGAColor green = TGAColor(0,   255, 0,   255);
 Model *model = NULL;
+TGAImage *texture_img = NULL;
 const int width  = 800;
 const int height = 800;
 
@@ -34,11 +35,11 @@ void line(Vec2i p0, Vec2i p1, TGAImage &image, TGAColor color) {
     }
 }
 
-void bary(int x, int y, Vec3i *pts, float *bc){
-    Vec3i v0 = pts[1] - pts[0];
-    Vec3i v1 = pts[2] - pts[0];
-    Vec3i P = Vec3i(x,y, 0);
-    Vec3i v2 = P - pts[0];
+void bary(int x, int y, Vec3f *pts, float *bc){
+    Vec3f v0 = pts[1] - pts[0];
+    Vec3f v1 = pts[2] - pts[0];
+    Vec3f P = Vec3f(x,y, 0);
+    Vec3f v2 = P - pts[0];
 
     float dot00 = v0.x * v0.x + v0.y * v0.y;
     float dot01 = v0.x * v1.x + v0.y * v1.y;
@@ -56,7 +57,7 @@ void bary(int x, int y, Vec3i *pts, float *bc){
     // return (u >= 0) && (v >= 0) && (u + v <= 1); 
 }
 
-void triangle(float *zbuffer, Vec3i *pts, TGAImage &image, TGAColor color) {
+void triangle(Vec3f *texture_coords, float *zbuffer, Vec3f *pts, TGAImage &image, TGAImage &texture_img, TGAColor color) {
     //find bounding box
     int y_max = pts[0].y;
     int y_min = pts[0].y;
@@ -89,6 +90,12 @@ void triangle(float *zbuffer, Vec3i *pts, TGAImage &image, TGAColor color) {
     if(x_max > image.get_width() - 1){ x_max = image.get_width() - 1;};
     if(x_min > image.get_width() - 1){ x_min = image.get_width() - 1;};
 
+    for(int i = 0; i < 3 ; i++){
+        texture_coords[i].x *= texture_img.get_width();
+        texture_coords[i].y *= texture_img.get_height();
+    }
+
+    // std::cout << texture_coords[0] << " " << texture_coords[1] << " " << texture_coords[2];
     //for each point in the bounding box, test to see if its in the triangle
     for(int x = x_min; x <= x_max; x++){
         for(int y = y_min; y <= y_max; y++){
@@ -98,16 +105,21 @@ void triangle(float *zbuffer, Vec3i *pts, TGAImage &image, TGAColor color) {
             
             if((bc[0] >= 0) && (bc[1] >= 0) && (bc[2] >= 0)){
                 float z = bc[0] * pts[0].z + bc[1] * pts[1].z + bc[2] * pts[2].z;
+                // std::cout << z << std::endl;
                 if(zbuffer[x + y * width] < z){
                     zbuffer[x + y * width] = z;
-                    image.set(x,y,color);    
+                    
+                    float texture_x = bc[0] * texture_coords[0].x + bc[1] * texture_coords[1].x + bc[2] * texture_coords[2].x;
+                    float texture_y = bc[0] * texture_coords[0].y + bc[1] * texture_coords[1].y + bc[2] * texture_coords[2].y;
+                    
+
+
+                    image.set(x,y,texture_img.get(roundf(texture_x), roundf(texture_y)));    
                 }
                 
             }
         }
     }
-
-
 
 
     // line(pts[0], pts[1], image, green);
@@ -121,6 +133,11 @@ int main(int argc, char** argv) {
     } else {
         model = new Model("obj/african_head.obj");
     }
+
+    TGAImage texture_img(width, height, TGAImage::RGB);
+
+    texture_img.read_tga_file("african_head_diffuse.tga");
+    texture_img.flip_vertically();
 
     TGAImage image(width, height, TGAImage::RGB);
 
@@ -136,26 +153,35 @@ int main(int argc, char** argv) {
     for (int i=width*height; i--; zbuffer[i] = -std::numeric_limits<float>::max());
 
     Vec3f light_dir(0,0,-1);
-    for (int i=0; i<model->nfaces(); i++) { 
-        std::vector<int> face = model->face(i); 
-        Vec3i screen_coords[3]; 
-        Vec3f world_coords[3]; 
+    for (int i= 0; i<model->nfaces(); i++) { 
+        std::vector<int> face = model->face(i);
+        std::vector<int> texture_face = model->texture_face(i);
+        Vec3f screen_coords[3]; 
+        Vec3f world_coords[3];
+        Vec3f texture_coords[3];
         for (int j=0; j<3; j++) { 
             Vec3f v = model->vert(face[j]); 
-            screen_coords[j] = Vec3i((v.x+1.)*width/2., (v.y+1.)*height/2., v.z); 
-            world_coords[j]  = v; 
-        } 
+            // std::cout << texture_face[j];
+            Vec3f vt = model->texture_vert(texture_face[j]);
+            screen_coords[j] = Vec3f((v.x+1.)*width/2., (v.y+1.)*height/2., v.z); 
+            world_coords[j]  = v;
+            texture_coords[j] = vt;
+            // std::cout << vt;
+        }
         Vec3f n = (world_coords[2]-world_coords[0])^(world_coords[1]-world_coords[0]); 
         n.normalize(); 
         float intensity = n*light_dir; 
         // if (intensity>0) { 
-            triangle(zbuffer, screen_coords, image, TGAColor(intensity*255, intensity*255, intensity*255, 255)); 
+            // std::cout << screen_coords[2] << std::endl;
+            triangle(texture_coords, zbuffer, screen_coords, image, texture_img, TGAColor(intensity*255, intensity*255, intensity*255, 255));
         // } 
     }
 
 
     image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
     image.write_tga_file("output.tga");
+
+    // texture_img.write_tga_file("text_text.tga");
     delete model;
     return 0;
 }
