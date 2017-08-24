@@ -58,7 +58,7 @@ void bary(int x, int y, Vec3f *pts, float *bc){
 }
 
 
-void triangle(Vec3f *texture_coords, float *zbuffer, Vec3f *pts, TGAImage &image, TGAImage &texture_img, float intensity) {
+void triangle(Vec3f *texture_coords, float *zbuffer, Vec3f *pts, TGAImage &image, TGAImage &texture_img, Vec3f light_dir, Vec3f *normal_coords) {
 
     //find bounding box
     int y_max = pts[0].y;
@@ -110,13 +110,27 @@ void triangle(Vec3f *texture_coords, float *zbuffer, Vec3f *pts, TGAImage &image
                 float z = bc[0] * pts[0].z + bc[1] * pts[1].z + bc[2] * pts[2].z;
                 // std::cout << z << std::endl;
 
+
                 if(zbuffer[x + y * width] < z){
                     zbuffer[x + y * width] = z;
-                    
+
+                    float normal_x = bc[0] * normal_coords[0].x + bc[1] * normal_coords[1].x + bc[2] * normal_coords[2].x;
+                    float normal_y = bc[0] * normal_coords[0].y + bc[1] * normal_coords[1].y + bc[2] * normal_coords[2].y;
+                    float normal_z = bc[0] * normal_coords[0].z + bc[1] * normal_coords[1].z + bc[2] * normal_coords[2].z;
+
+                    Vec3f normal = Vec3f(normal_x, normal_y, normal_z);
+                    normal.normalize();
+                    float intensity = normal * light_dir;
+                    // std::cout << intensity << std::endl;
+                    intensity = -intensity;
+                    if(intensity < 0){
+                        intensity = 0;
+                    }
+
                     float texture_x = bc[0] * texture_coords[0].x + bc[1] * texture_coords[1].x + bc[2] * texture_coords[2].x;
                     float texture_y = bc[0] * texture_coords[0].y + bc[1] * texture_coords[1].y + bc[2] * texture_coords[2].y;
                     TGAColor text_color = texture_img.get(roundf(texture_x), roundf(texture_y));
-                    TGAColor adjusted_color = TGAColor(text_color.r * intensity, text_color.g * intensity, text_color.g * intensity, 255);
+                    TGAColor adjusted_color = TGAColor((float)text_color.r * intensity, (float)text_color.g * intensity, (float)text_color.g * intensity, 255);
                     image.set(x,y,adjusted_color);    
                 }
                 
@@ -163,26 +177,28 @@ int main(int argc, char** argv) {
         std::vector<int> face = model->face(i);
         std::vector<int> texture_face = model->texture_face(i);
         Vec3f screen_coords[3]; 
-        Vec3f world_coords[3];
+        // Vec3f world_coords[3];
         Vec3f texture_coords[3];
+        Vec3f normal_coords[3];
         for (int j=0; j<3; j++) { 
             Vec3f v = model->vert(face[j]); 
             // std::cout << texture_face[j];
             Vec3f vt = model->texture_vert(texture_face[j]);
-
-            float coeff = 1.0 - (v.z / 2);
-            screen_coords[j] = Vec3f((v.x/coeff+1.)*800/2. + 100, (v.y/coeff+1.)*800/2. + 100, v.z/coeff); 
-            world_coords[j]  = v;
+            Vec3f vn = model->normal_vert(face[j]);
+            float coeff = 1.0 - (v.z / 2.0);
+            screen_coords[j] = Vec3f((v.x/coeff+1.)*800/2. + 100, (v.y/coeff+1.)*800/2. + 100, v.z/coeff);
+            normal_coords[j] = Vec3f(vn.x/coeff, vn.y/coeff, vn.z/coeff);
+            // world_coords[j]  = v;
             texture_coords[j] = vt;
             // std::cout << vt;
         }
 
-        Vec3f n = (world_coords[2]-world_coords[0])^(world_coords[1]-world_coords[0]); 
-        n.normalize(); 
-        float intensity = n*light_dir; 
+        // Vec3f n = (world_coords[2]-world_coords[0])^(world_coords[1]-world_coords[0]); 
+        // n.normalize(); 
+        // float intensity = n*light_dir; 
         // if (intensity>0) { 
             // std::cout << screen_coords[2] << std::endl;
-            triangle(texture_coords, zbuffer, screen_coords, image, texture_img, intensity);
+            triangle(texture_coords, zbuffer, screen_coords, image, texture_img, light_dir, normal_coords);
         // } 
     }
 
