@@ -106,6 +106,8 @@ int main(int argc, char** argv) {
             for (int j=0; j<3; j++) {
                 Vec3f v = model->vert(face[j]);
                 screen_coords[j] =  Vec3f(ViewPort*Projection*ModelView*Matrix(v));
+                // std::cout << v;
+                // std::cout << screen_coords[j] << std::endl;
                 world_coords[j]  = v;
                 intensity[j] = model->norm(i, j)*light_dir;
             }
