@@ -105,10 +105,13 @@ int main(int argc, char** argv) {
             float intensity[3];
             for (int j=0; j<3; j++) {
                 Vec3f v = model->vert(face[j]);
+                std::cout << v;
+                std::cout << z << std::endl;
                 screen_coords[j] =  Vec3f(ViewPort*Projection*ModelView*Matrix(v));
-                // std::cout << v;
-                // std::cout << screen_coords[j] << std::endl;
                 world_coords[j]  = v;
+                Matrix tmp_m = ViewPort*Projection*ModelView*Matrix(v);
+                std::cout << screen_coords[j];
+                std::cout << tmp_m;
                 intensity[j] = model->norm(i, j)*light_dir;
             }
             triangle(screen_coords[0], screen_coords[1], screen_coords[2], intensity[0], intensity[1], intensity[2], image, zbuffer);

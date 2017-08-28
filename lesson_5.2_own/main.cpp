@@ -220,8 +220,9 @@ int main(int argc, char** argv) {
     
 
     Matrix cob = clip_m * proj_m * view_m * model_m;
+    Matrix norm_cob = cob.inverse().transpose();
 
-    std::cout << cob;
+    // std::cout << cob;
 
     // Vec2i t0[3] = {Vec2i(10, 70),   Vec2i(50, 160),  Vec2i(70, 80)};
     // Vec2i t1[3] = {Vec2i(180, 50),  Vec2i(150, 1),   Vec2i(70, 180)};
@@ -234,7 +235,7 @@ int main(int argc, char** argv) {
     float *zbuffer = new float[width*height];
     for (int i=width*height; i--; zbuffer[i] = -std::numeric_limits<float>::max());
 
-    Vec3f light_dir(0,0,-1);
+    Vec3f light_dir(0,2,-1);
 
 
 
@@ -252,18 +253,26 @@ int main(int argc, char** argv) {
             v_m(1, 0) = v.y;
             v_m(2, 0) = v.z;
             v_m(3, 0) = 1;
-            Matrix screen =  clip_m * proj_m * view_m * model_m * v_m;
-            // screen /= screen(3,0);
+            Matrix screen =  cob * v_m;
+            screen /= screen(3,0);
             // screen = clip_m * screen;
             // std::cout << texture_face[j];
             Vec3f vt = model->texture_vert(texture_face[j]);
             Vec3f vn = model->normal_vert(face[j]);
-            float coeff = 1.0 - (v.z / 2.0);
+            // float coeff = 1.0 - (v.z / 2.0);
             // screen_coords[j] = Vec3f((v.x/coeff+1.)*800/2. + 100, (v.y/coeff+1.)*800/2. + 100, v.z/coeff);
             screen_coords[j] = Vec3f(screen(0,0), screen(1,0), screen(2,0));
-            std::cout << v;
-            std::cout << screen_coords[j];
-            normal_coords[j] = Vec3f(vn.x/coeff, vn.y/coeff, vn.z/coeff);
+            // std::cout << v;
+            // std::cout << cob;
+            // std::cout << screen_coords[j];
+            Matrix vn_m = Matrix(4,1);
+            vn_m(0, 0) = vn.x;
+            vn_m(1, 0) = vn.y;
+            vn_m(2, 0) = vn.z;
+            vn_m(3, 0) = 0;
+            vn_m = norm_cob * vn_m;
+            // normal_coords[j] = Vec3f(vn.x/coeff, vn.y/coeff, vn.z/coeff);
+            normal_coords[j] = Vec3f(vn_m(0,0),vn_m(1,0),vn_m(2,0));
             // world_coords[j]  = v;
             texture_coords[j] = vt;
             // std::cout << vt;
