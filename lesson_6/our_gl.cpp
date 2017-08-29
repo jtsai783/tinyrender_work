@@ -1,8 +1,17 @@
 #include "our_gl.h"
+#include "matrix.h"
 
-Matrix ModelView;
-Matrix Viewport;
-Matrix Projection;
+Vec3f normalize(Vec3f a){
+    double mag = sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+    return Vec3f(a.x / mag, a.y / mag, a.z / mag);
+}
+
+Vec3f cross(Vec3f a, Vec3f b){
+    float x = a.y * b.z - a.z * b.y;
+    float y = a.z * b.x - a.x * b.z;
+    float z = a.x * b.y - a.y * b.x;
+    return Vec3f(x,y,z);
+}
 
 void bary(int x, int y, Vec3f *pts, float *bc){
     Vec3f v0 = pts[1] - pts[0];
@@ -25,7 +34,8 @@ void bary(int x, int y, Vec3f *pts, float *bc){
     bc[0] = 1 - (u + v);
 }
 
-void view(Vec3f center, Vec3f eye, Vec3f up){
+Matrix view(Vec3f center, Vec3f eye, Vec3f up){
+    Matrix ModelView = Matrix::createIdentity(4);
     Vec3f z = (eye-center);
     z = normalize(z);
     Vec3f x = cross(up,z);
@@ -41,10 +51,11 @@ void view(Vec3f center, Vec3f eye, Vec3f up){
         Tr(i,3) = -center[i];
     }
     ModelView = Minv*Tr;
+    return ModelView;
 }
 
-void clip(int x, int y, int width, int height){
-    Viewport = Matrix::createIdentity(4);
+Matrix clip(int x, int y, int width, int height){
+    Matrix Viewport = Matrix::createIdentity(4);
     Viewport(0,3) = x + width/2.0;
     Viewport(1,3) = y+ height/2.0;
     Viewport(2,3) = 255/2.0;
@@ -52,11 +63,12 @@ void clip(int x, int y, int width, int height){
     Viewport(0,0) = width / 2.0;
     Viewport(1,1) = height/2.0;
     Viewport(2,2) = 255/2.0;
+    return Viewport;
 }
 
-void proj(float coeff){
+// Matrix proj(float coeff){
 
-}
+// }
 
 void line(Vec2i p0, Vec2i p1, TGAImage &image, TGAColor color) {
     bool steep = false;
@@ -80,7 +92,7 @@ void line(Vec2i p0, Vec2i p1, TGAImage &image, TGAColor color) {
     }
 }
 
-void triangle(Vec3f *texture_coords, float *zbuffer, Vec3f *pts, TGAImage &image, TGAImage &texture_img, Vec3f light_dir, Vec3f *normal_coords) {
+void triangle(Vec3f *texture_coords, float *zbuffer, Vec3f *pts, TGAImage &image, TGAImage &texture_img, Vec3f light_dir, Vec3f *normal_coords, int width) {
 
     int y_max = pts[0].y;
     int y_min = pts[0].y;

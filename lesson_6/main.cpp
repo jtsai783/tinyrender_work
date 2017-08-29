@@ -15,17 +15,7 @@ TGAImage *texture_img = NULL;
 const int width  = 800;
 const int height = 800;
 
-Vec3f cross(Vec3f a, Vec3f b){
-    float x = a.y * b.z - a.z * b.y;
-    float y = a.z * b.x - a.x * b.z;
-    float z = a.x * b.y - a.y * b.x;
-    return Vec3f(x,y,z);
-}
 
-Vec3f normalize(Vec3f a){
-    double mag = sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
-    return Vec3f(a.x / mag, a.y / mag, a.z / mag);
-}
 
 int main(int argc, char** argv) {
     if (2==argc) {
@@ -89,7 +79,7 @@ int main(int argc, char** argv) {
             normal_coords[j] = Vec3f(vn_m(0,0),vn_m(1,0),vn_m(2,0));
             texture_coords[j] = vt;
         }
-        triangle(texture_coords, zbuffer, screen_coords, image, texture_img, light_dir, normal_coords); 
+        triangle(texture_coords, zbuffer, screen_coords, image, texture_img, light_dir, normal_coords, width); 
     }
 
 
