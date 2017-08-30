@@ -59,7 +59,6 @@ void view(Vec3f center, Vec3f eye, Vec3f up){
         Tr(i,3) = -center[i];
     }
     ModelView = Minv*Tr;
-    // return ModelView;
 }
 
 void clip(int x, int y, int width, int height){
@@ -71,7 +70,6 @@ void clip(int x, int y, int width, int height){
     Viewport(0,0) = width / 2.0;
     Viewport(1,1) = height/2.0;
     Viewport(2,2) = 255/2.0;
-    // return Viewport;
 }
 
 void proj(float coeff){
@@ -101,11 +99,7 @@ void line(Vec2i p0, Vec2i p1, TGAImage &image, TGAColor color) {
     }
 }
 
-void triangle(int *zbuffer, Matrix *pts_m, TGAImage &image, IShader &shader, int width) {
-
-    Vec3f pts[3];
-    pts[0] = Vec3f(pts_m[0](0,0), pts_m[0](0,1), pts_m[0](0,2));
-    pts[1] = Vec3f(pts_m[1](0,0), pts_m[1](0,1), pts_m[1](0,2));
+void triangle(int *zbuffer, Vec3f *pts, TGAImage &image, IShader &shader, int width, int face, TGAImage &texture) {
 
 
     int y_max = pts[0].y;
@@ -137,10 +131,6 @@ void triangle(int *zbuffer, Matrix *pts_m, TGAImage &image, IShader &shader, int
     if(x_max > image.get_width() - 1){ x_max = image.get_width() - 1;};
     if(x_min > image.get_width() - 1){ x_min = image.get_width() - 1;};
 
-    // for(int i = 0; i < 3 ; i++){
-    //     texture_coords[i].x *= texture_img.get_width();
-    //     texture_coords[i].y *= texture_img.get_height();
-    // }
 
     for(int x = x_min; x <= x_max; x++){
         for(int y = y_min; y <= y_max; y++){
@@ -150,27 +140,13 @@ void triangle(int *zbuffer, Matrix *pts_m, TGAImage &image, IShader &shader, int
             if((bc[0] >= 0) && (bc[1] >= 0) && (bc[2] >= 0)){
                 float z = bc[0] * pts[0].z + bc[1] * pts[1].z + bc[2] * pts[2].z;
 
-
-                if(zbuffer[x + y * width] < z){
-            //         zbuffer[x + y * width] = z;
-
-            //         float normal_x = bc[0] * normal_coords[0].x + bc[1] * normal_coords[1].x + bc[2] * normal_coords[2].x;
-            //         float normal_y = bc[0] * normal_coords[0].y + bc[1] * normal_coords[1].y + bc[2] * normal_coords[2].y;
-            //         float normal_z = bc[0] * normal_coords[0].z + bc[1] * normal_coords[1].z + bc[2] * normal_coords[2].z;
-
-            //         Vec3f normal = Vec3f(normal_x, normal_y, normal_z);
-            //         normal.normalize();
-            //         float intensity = normal * light_dir;
-            //         intensity = -intensity;
-            //         if(intensity < 0){
-            //             intensity = 0;
-            //         }
-
-            //         float texture_x = bc[0] * texture_coords[0].x + bc[1] * texture_coords[1].x + bc[2] * texture_coords[2].x;
-            //         float texture_y = bc[0] * texture_coords[0].y + bc[1] * texture_coords[1].y + bc[2] * texture_coords[2].y;
-            //         TGAColor text_color = texture_img.get(roundf(texture_x), roundf(texture_y));
-            //         TGAColor adjusted_color = TGAColor((float)text_color.r * intensity, (float)text_color.g * intensity, (float)text_color.g * intensity, 255);
-            //         image.set(x,y,adjusted_color);    
+                if(zbuffer[x + y * width] < int(z + 0.5)){
+                    TGAColor color;
+                    bool discard = shader.fragment(bc, color, face, texture);
+                    if(!discard){
+                        zbuffer[x + y * width] = int(z + 0.5);
+                        image.set(x, y , color);
+                    }   
                 }
                 
             }

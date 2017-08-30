@@ -17,11 +17,10 @@ void proj(float coeff);
 
 struct IShader {
     virtual ~IShader();
-    virtual Matrix vertex(Vec3f v, int nthvert) = 0;
-    virtual bool fragment(Vec3f bar, TGAColor &color) = 0;
+    virtual Vec3f vertex(int nface, int nthvert) = 0;
+    virtual bool fragment(float *bc, TGAColor &color, int nface, TGAImage &texture) = 0;
 };
 
-// triangle(texture_coords, zbuffer, screen_coords, image, texture_img, light_dir, normal_coords); 
-void triangle(int *zbuffer, Matrix *pts, TGAImage &image, IShader &shader, int width);
+void triangle(int *zbuffer, Vec3f *pts, TGAImage &image, IShader &shader, int width, int face, TGAImage &texture);
 
 #endif

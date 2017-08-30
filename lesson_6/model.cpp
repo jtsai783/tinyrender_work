@@ -35,17 +35,19 @@ Model::Model(const char *filename) : verts_(), faces_() {
             normal_verts_.push_back(v);
         }else if (!line.compare(0, 2, "f ")) {
             std::vector<int> f;
-            std::vector<int> ft;
-            int itrash, idx, vtext;
+            // std::vector<int> ft;
+            int vn, idx, vt;
             iss >> trash;
-            while (iss >> idx >> trash >> vtext >> trash >> itrash) {
+            while (iss >> idx >> trash >> vt >> trash >> vn) {
                 idx--; // in wavefront obj all indices start at 1, not zero
-                vtext--;
+                vt--;
+                vn--;
                 f.push_back(idx);
-                ft.push_back(vtext);
+                f.push_back(vt);
+                f.push_back(vn);
             }
             faces_.push_back(f);
-            texture_faces_.push_back(ft);
+            // texture_faces_.push_back(ft);
         }
     }
     std::cerr << "# v# " << verts_.size() << " f# "  << faces_.size() << std::endl;
@@ -66,9 +68,9 @@ std::vector<int> Model::face(int idx) {
     return faces_[idx];
 }
 
-std::vector<int> Model::texture_face(int idx) {
-    return texture_faces_[idx];
-}
+// std::vector<int> Model::texture_face(int idx) {
+//     return texture_faces_[idx];
+// }
 
 Vec3f Model::vert(int i) {
     return verts_[i];

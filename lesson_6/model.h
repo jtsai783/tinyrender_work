@@ -10,7 +10,7 @@ private:
 	std::vector<Vec3f> texture_verts_;
 	std::vector<Vec3f> normal_verts_;
 	std::vector<std::vector<int> > faces_;
-	std::vector<std::vector<int> > texture_faces_;
+	// std::vector<std::vector<int> > texture_faces_;
 
 public:
 	Model(const char *filename);
@@ -21,7 +21,7 @@ public:
 	Vec3f texture_vert(int i);
 	Vec3f normal_vert(int i);
 	std::vector<int> face(int idx);
-	std::vector<int> texture_face(int idx);
+	// std::vector<int> texture_face(int idx);
 };
 
 #endif //__MODEL_H__

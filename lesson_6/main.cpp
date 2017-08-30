@@ -6,6 +6,7 @@
 #include "model.h"
 #include "matrix.h"
 #include "our_gl.h"
+// #include <algorithm>
 
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
@@ -15,28 +16,46 @@ TGAImage *texture_img = NULL;
 const int width  = 800;
 const int height = 800;
 
-Vec3f camera(0, -1, 3);
+Vec3f camera(1, 1, 3);
 Vec3f center(0, 0, 0);
 Vec3f up(0, 1, 0);
-Vec3f light_dir(0,0,-1);
+Vec3f light_dir(0,0,1);
 
 struct GouraudShader : public IShader {
     Vec3f varying_intensity;
 
-    virtual Matrix vertex(Vec3f v, int nthvert){
-        varying_intensity[nthvert] = 1;
+    virtual Vec3f vertex(int nface, int nthvert){
+        int normal_index = (model->face(nface))[nthvert * 3 + 2];
+        int vert_index = (model->face(nface))[nthvert * 3];
+        Vec3f v = model->vert(vert_index);
+        varying_intensity[nthvert] = std::max(0.f, model->normal_vert(normal_index) * light_dir);
         Matrix v_m = Matrix(4,1);
         v_m(0, 0) = v.x;
         v_m(1, 0) = v.y;
         v_m(2, 0) = v.z;
         v_m(3, 0) = 1;
         v_m = Viewport * Projection * ModelView * v_m;
-        // v_m /= v_m(3,0);
-        // std::cout << v_m;
-        return v_m;
+        v_m /= v_m(3,0);
+        return Vec3f(v_m(0,0),v_m(1,0),v_m(2,0));
     }
 
-    virtual bool fragment(Vec3f bar, TGAColor &color){
+    virtual bool fragment(float *bc, TGAColor &color, int nface, TGAImage &texture){
+        
+        std::vector<int> face = model->face(nface);
+        Vec3f texture_coords_0 = model->texture_vert(face[1]);
+        Vec3f texture_coords_1 = model->texture_vert(face[4]);
+        Vec3f texture_coords_2 = model->texture_vert(face[7]);
+
+        float texture_x = bc[0] * texture_coords_0.x + bc[1] * texture_coords_1.x + bc[2] * texture_coords_2.x;
+        float texture_y = bc[0] * texture_coords_0.y + bc[1] * texture_coords_1.y + bc[2] * texture_coords_2.y;
+
+        float intensity = bc[0] * varying_intensity[0] + bc[1] * varying_intensity[1] + bc[2] * varying_intensity[2];
+
+        texture_x = texture_x * (float)texture.get_width();
+        texture_y = texture_y * (float)texture.get_height();
+
+        color = texture.get(roundf(texture_x), roundf(texture_y));
+        color = TGAColor((float)color.r * intensity, (float)color.g * intensity, (float)color.b * intensity, 255);
 
         return false;
     }
@@ -69,34 +88,11 @@ int main(int argc, char** argv) {
     GouraudShader shader;
     for (int i= 0; i < model->nfaces(); i++) { 
         std::vector<int> face = model->face(i);
-        // std::vector<int> texture_face = model->texture_face(i);
-        Matrix screen_coords[3]; 
-        // Vec3f texture_coords[3];
-        // Vec3f normal_coords[3];
+        Vec3f screen_coords[3]; 
         for (int j=0; j<3; j++) { 
-
-            screen_coords[j] = shader.vertex(model->vert(face[j]), j);
-
-            // Vec3f v = model->vert(face[j]); 
-
-
-
-
-            // Matrix screen =  cob * v_m;
-            // screen /= screen(3,0);
-            // Vec3f vt = model->texture_vert(texture_face[j]);
-            // Vec3f vn = model->normal_vert(face[j]);
-            // screen_coords[j] = Vec3f(screen(0,0), screen(1,0), screen(2,0));
-            // Matrix vn_m = Matrix(4,1);
-            // vn_m(0, 0) = vn.x;
-            // vn_m(1, 0) = vn.y;
-            // vn_m(2, 0) = vn.z;
-            // vn_m(3, 0) = 0;
-            // vn_m = norm_cob * vn_m;
-            // normal_coords[j] = Vec3f(vn_m(0,0),vn_m(1,0),vn_m(2,0));
-            // texture_coords[j] = vt;
+            screen_coords[j] = shader.vertex(i, j);
         }
-        triangle(zbuffer, screen_coords, image, shader, width); 
+        triangle(zbuffer, screen_coords, image, shader, width, i, texture_img); 
     }
 
 
