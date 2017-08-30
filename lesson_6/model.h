@@ -3,6 +3,7 @@
 
 #include <vector>
 #include "geometry.h"
+#include "tgaimage.h"
 
 class Model {
 private:
@@ -21,6 +22,7 @@ public:
 	Vec3f texture_vert(int i);
 	Vec3f normal_vert(int i);
 	std::vector<int> face(int idx);
+	TGAImage diffuse;
 	// std::vector<int> texture_face(int idx);
 };
 

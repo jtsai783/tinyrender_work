@@ -18,9 +18,9 @@ void proj(float coeff);
 struct IShader {
     virtual ~IShader();
     virtual Vec3f vertex(int nface, int nthvert) = 0;
-    virtual bool fragment(float *bc, TGAColor &color, int nface, TGAImage &texture) = 0;
+    virtual bool fragment(float *bc, TGAColor &color) = 0;
 };
 
-void triangle(int *zbuffer, Vec3f *pts, TGAImage &image, IShader &shader, int width, int face, TGAImage &texture);
+void triangle(int *zbuffer, Vec3f *pts, TGAImage &image, IShader &shader, int width);
 
 #endif

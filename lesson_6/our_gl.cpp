@@ -99,7 +99,7 @@ void line(Vec2i p0, Vec2i p1, TGAImage &image, TGAColor color) {
     }
 }
 
-void triangle(int *zbuffer, Vec3f *pts, TGAImage &image, IShader &shader, int width, int face, TGAImage &texture) {
+void triangle(int *zbuffer, Vec3f *pts, TGAImage &image, IShader &shader, int width) {
 
 
     int y_max = pts[0].y;
@@ -142,7 +142,7 @@ void triangle(int *zbuffer, Vec3f *pts, TGAImage &image, IShader &shader, int wi
 
                 if(zbuffer[x + y * width] < int(z + 0.5)){
                     TGAColor color;
-                    bool discard = shader.fragment(bc, color, face, texture);
+                    bool discard = shader.fragment(bc, color);
                     if(!discard){
                         zbuffer[x + y * width] = int(z + 0.5);
                         image.set(x, y , color);

@@ -19,10 +19,11 @@ const int height = 800;
 Vec3f camera(1, 1, 3);
 Vec3f center(0, 0, 0);
 Vec3f up(0, 1, 0);
-Vec3f light_dir(0,0,1);
+Vec3f light_dir(0.5,1,3);
 
 struct GouraudShader : public IShader {
     Vec3f varying_intensity;
+    int thisFace;
 
     virtual Vec3f vertex(int nface, int nthvert){
         int normal_index = (model->face(nface))[nthvert * 3 + 2];
@@ -36,12 +37,13 @@ struct GouraudShader : public IShader {
         v_m(3, 0) = 1;
         v_m = Viewport * Projection * ModelView * v_m;
         v_m /= v_m(3,0);
+        thisFace = nface;
         return Vec3f(v_m(0,0),v_m(1,0),v_m(2,0));
     }
 
-    virtual bool fragment(float *bc, TGAColor &color, int nface, TGAImage &texture){
-        
-        std::vector<int> face = model->face(nface);
+    virtual bool fragment(float *bc, TGAColor &color){
+
+        std::vector<int> face = model->face(thisFace);
         Vec3f texture_coords_0 = model->texture_vert(face[1]);
         Vec3f texture_coords_1 = model->texture_vert(face[4]);
         Vec3f texture_coords_2 = model->texture_vert(face[7]);
@@ -51,10 +53,22 @@ struct GouraudShader : public IShader {
 
         float intensity = bc[0] * varying_intensity[0] + bc[1] * varying_intensity[1] + bc[2] * varying_intensity[2];
 
-        texture_x = texture_x * (float)texture.get_width();
-        texture_y = texture_y * (float)texture.get_height();
+        // intensity = 1;
 
-        color = texture.get(roundf(texture_x), roundf(texture_y));
+        // if( intensity >= 0 && intensity < 0.25){
+        //     intensity = 0.25;
+        // } else if ( intensity >= 0.25 && intensity < 0.5){
+        //     intensity = 0.5;
+        // } else if( intensity >= 0.5 && intensity < 0.75){
+        //     intensity = 0.75;
+        // } else if( intensity >= 0.75 && intensity < 1){
+        //     intensity = 1;
+        // }
+
+        texture_x = texture_x * (model->diffuse).get_width();
+        texture_y = texture_y * (model->diffuse).get_height();
+
+        color = (model->diffuse).get(roundf(texture_x), roundf(texture_y));
         color = TGAColor((float)color.r * intensity, (float)color.g * intensity, (float)color.b * intensity, 255);
 
         return false;
@@ -68,10 +82,10 @@ int main(int argc, char** argv) {
         model = new Model("obj/african_head.obj");
     }
 
-    TGAImage texture_img(width, height, TGAImage::RGB);
+    // TGAImage texture_img(width, height, TGAImage::RGB);
 
-    texture_img.read_tga_file("african_head_diffuse.tga");
-    texture_img.flip_vertically();
+    // texture_img.read_tga_file("african_head_diffuse.tga");
+    // texture_img.flip_vertically();
 
     TGAImage image(width, height, TGAImage::RGB);
 
@@ -92,7 +106,7 @@ int main(int argc, char** argv) {
         for (int j=0; j<3; j++) { 
             screen_coords[j] = shader.vertex(i, j);
         }
-        triangle(zbuffer, screen_coords, image, shader, width, i, texture_img); 
+        triangle(zbuffer, screen_coords, image, shader, width); 
     }
 
 
