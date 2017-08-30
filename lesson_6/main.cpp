@@ -88,6 +88,7 @@ int main(int argc, char** argv) {
     // texture_img.flip_vertically();
 
     TGAImage image(width, height, TGAImage::RGB);
+    TGAImage zbuffer(width, height, TGAImage::GRAYSCALE);
 
     view(center, camera, up);
     proj(-1.0/(camera - center).norm());
@@ -95,8 +96,8 @@ int main(int argc, char** argv) {
     light_dir.normalize();
 
 
-    int *zbuffer = new int[width*height];
-    for (int i=width*height; i--; zbuffer[i] = 0);
+    // int *zbuffer = new int[width*height];
+    // for (int i=width*height; i--; zbuffer[i] = 0);
 
 
     GouraudShader shader;
@@ -106,12 +107,14 @@ int main(int argc, char** argv) {
         for (int j=0; j<3; j++) { 
             screen_coords[j] = shader.vertex(i, j);
         }
-        triangle(zbuffer, screen_coords, image, shader, width); 
+        triangle(zbuffer, screen_coords, image, shader); 
     }
 
 
     image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
+    zbuffer.flip_vertically();
     image.write_tga_file("output.tga");
+    zbuffer.write_tga_file("zbuffer.tga");
 
     delete model;
     return 0;

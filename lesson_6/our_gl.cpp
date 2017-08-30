@@ -99,7 +99,7 @@ void line(Vec2i p0, Vec2i p1, TGAImage &image, TGAColor color) {
     }
 }
 
-void triangle(int *zbuffer, Vec3f *pts, TGAImage &image, IShader &shader, int width) {
+void triangle(TGAImage &zbuffer, Vec3f *pts, TGAImage &image, IShader &shader) {
 
 
     int y_max = pts[0].y;
@@ -139,12 +139,13 @@ void triangle(int *zbuffer, Vec3f *pts, TGAImage &image, IShader &shader, int wi
 
             if((bc[0] >= 0) && (bc[1] >= 0) && (bc[2] >= 0)){
                 float z = bc[0] * pts[0].z + bc[1] * pts[1].z + bc[2] * pts[2].z;
-
-                if(zbuffer[x + y * width] < int(z + 0.5)){
+                TGAColor zb = zbuffer.get(x, y);
+                // std::cout << zb.val << std::endl;
+                if(zbuffer.get(x, y).val < int(z + 0.5)){
                     TGAColor color;
                     bool discard = shader.fragment(bc, color);
                     if(!discard){
-                        zbuffer[x + y * width] = int(z + 0.5);
+                        zbuffer.set(x, y , TGAColor(int(z + 0.5), 1));
                         image.set(x, y , color);
                     }   
                 }

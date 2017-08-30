@@ -21,6 +21,6 @@ struct IShader {
     virtual bool fragment(float *bc, TGAColor &color) = 0;
 };
 
-void triangle(int *zbuffer, Vec3f *pts, TGAImage &image, IShader &shader, int width);
+void triangle(TGAImage &zbuffer, Vec3f *pts, TGAImage &image, IShader &shader);
 
 #endif
