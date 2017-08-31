@@ -19,23 +19,25 @@ const int height = 800;
 Vec3f camera(1, 1, 3);
 Vec3f center(0, 0, 0);
 Vec3f up(0, 1, 0);
-Vec3f light_dir(0.5,1,3);
+Vec3f light_dir(1,1,1);
 
-struct GouraudShader : public IShader {
-    Vec3f varying_intensity;
+struct Shader : public IShader {
+    // Vec3f varying_intensity;
     int thisFace;
+    Matrix cob;
+    Matrix cob_IT;
 
     virtual Vec3f vertex(int nface, int nthvert){
         int normal_index = (model->face(nface))[nthvert * 3 + 2];
         int vert_index = (model->face(nface))[nthvert * 3];
         Vec3f v = model->vert(vert_index);
-        varying_intensity[nthvert] = std::max(0.f, model->normal_vert(normal_index) * light_dir);
+        // varying_intensity[nthvert] = std::max(0.f, model->normal_vert(normal_index) * light_dir);
         Matrix v_m = Matrix(4,1);
         v_m(0, 0) = v.x;
         v_m(1, 0) = v.y;
         v_m(2, 0) = v.z;
         v_m(3, 0) = 1;
-        v_m = Viewport * Projection * ModelView * v_m;
+        v_m = cob * v_m;
         v_m /= v_m(3,0);
         thisFace = nface;
         return Vec3f(v_m(0,0),v_m(1,0),v_m(2,0));
@@ -51,7 +53,7 @@ struct GouraudShader : public IShader {
         float texture_x = bc[0] * texture_coords_0.x + bc[1] * texture_coords_1.x + bc[2] * texture_coords_2.x;
         float texture_y = bc[0] * texture_coords_0.y + bc[1] * texture_coords_1.y + bc[2] * texture_coords_2.y;
 
-        float intensity = bc[0] * varying_intensity[0] + bc[1] * varying_intensity[1] + bc[2] * varying_intensity[2];
+        // float intensity = bc[0] * varying_intensity[0] + bc[1] * varying_intensity[1] + bc[2] * varying_intensity[2];
 
         // intensity = 1;
 
@@ -67,6 +69,35 @@ struct GouraudShader : public IShader {
 
         texture_x = texture_x * (model->diffuse).get_width();
         texture_y = texture_y * (model->diffuse).get_height();
+
+
+        // //get the color on normal map
+        TGAColor normal = (model->normal_map).get(roundf(texture_x), roundf(texture_y));
+        Vec3f normal_vec = Vec3f((float)normal.r, (float)normal.g, (float)normal.b);
+
+        Matrix vn_m = Matrix(4,1);
+        vn_m(0,0) = normal_vec.x;
+        vn_m(1,0) = normal_vec.y;
+        vn_m(2,0) = normal_vec.z;
+        vn_m(3,0) = 1;
+        vn_m = cob_IT * vn_m;
+        vn_m = vn_m / vn_m(3,0);
+        normal_vec = Vec3f(vn_m(0,0),vn_m(1,0),vn_m(2,0));
+        // normal_vec.normalize();
+
+        Matrix light_m = Matrix(4,1);
+        light_m(0,0) = light_dir.x;
+        light_m(1,0) = light_dir.y;
+        light_m(2,0) = light_dir.z;
+        light_m(3,0) = 1;
+        light_m = cob * light_m;
+        light_m = light_m / light_m(3,0);
+        Vec3f light_vec = Vec3f(light_m(0,0),light_m(1,0),light_m(2,0));
+        // light_vec.normalize();
+
+        float intensity = light_vec.normalize() * normal_vec.normalize();
+        intensity = std::max(0.f, -intensity);
+       
 
         color = (model->diffuse).get(roundf(texture_x), roundf(texture_y));
         color = TGAColor((float)color.r * intensity, (float)color.g * intensity, (float)color.b * intensity, 255);
@@ -100,7 +131,9 @@ int main(int argc, char** argv) {
     // for (int i=width*height; i--; zbuffer[i] = 0);
 
 
-    GouraudShader shader;
+    Shader shader;
+    shader.cob = Viewport * Projection * ModelView;
+    shader.cob_IT = shader.cob.inverse().transpose();
     for (int i= 0; i < model->nfaces(); i++) { 
         std::vector<int> face = model->face(i);
         Vec3f screen_coords[3]; 

@@ -23,6 +23,7 @@ public:
 	Vec3f normal_vert(int i);
 	std::vector<int> face(int idx);
 	TGAImage diffuse;
+	TGAImage normal_map;
 	// std::vector<int> texture_face(int idx);
 };
 

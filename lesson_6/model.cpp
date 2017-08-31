@@ -52,8 +52,11 @@ Model::Model(const char *filename) : verts_(), faces_() {
     }
     std::cerr << "# v# " << verts_.size() << " f# "  << faces_.size() << std::endl;
 
-    diffuse.read_tga_file("african_head_diffuse.tga");
+    diffuse.read_tga_file("obj/african_head_diffuse.tga");
     diffuse.flip_vertically();
+
+    normal_map.read_tga_file("obj/african_head_nm.tga");
+    normal_map.flip_vertically();
 }
 
 Model::~Model() {
