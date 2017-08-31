@@ -21,85 +21,79 @@ Vec3f center(0, 0, 0);
 Vec3f up(0, 1, 0);
 Vec3f light_dir(1,1,1);
 
+// Vec3f cross2(Vec3f a, Vec3f b){
+//     float x = a.y * b.z - a.z * b.y;
+//     float y = a.z * b.x - a.x * b.z;
+//     float z = a.x * b.y - a.y * b.x;
+//     return Vec3f(x,y,z);
+// }
+
+Vec3f transform_v(Matrix m, Vec3f v){
+    Matrix v_m = Matrix(4,1);
+    v_m(0,0) = v.x;
+    v_m(1,0) = v.y;
+    v_m(2,0) = v.z;
+    v_m(3,0) = 0.0;
+    v_m = m * v_m;
+    return Vec3f(v_m(0,0),v_m(1,0),v_m(2,0));
+}
+
+Vec3f transform_p(Matrix m, Vec3f v){
+    Matrix v_m = Matrix(4,1);
+    v_m(0,0) = v.x;
+    v_m(1,0) = v.y;
+    v_m(2,0) = v.z;
+    v_m(3,0) = 1.0;
+    v_m = m * v_m;
+    v_m = v_m / v_m(3,0);
+    return Vec3f(v_m(0,0),v_m(1,0),v_m(2,0));
+}
+
 struct Shader : public IShader {
-    // Vec3f varying_intensity;
-    int thisFace;
+    Vec3f texture_coords[3];
+    Vec3f normal_vec[3];
     Matrix cob;
     Matrix cob_IT;
 
+    // Matrix M;
+    // Matrix M_IT;
+
+    // Vec3f triangle_normal;
+    // Vec3f verts[3];
+
     virtual Vec3f vertex(int nface, int nthvert){
-        int normal_index = (model->face(nface))[nthvert * 3 + 2];
-        int vert_index = (model->face(nface))[nthvert * 3];
-        Vec3f v = model->vert(vert_index);
-        // varying_intensity[nthvert] = std::max(0.f, model->normal_vert(normal_index) * light_dir);
-        Matrix v_m = Matrix(4,1);
-        v_m(0, 0) = v.x;
-        v_m(1, 0) = v.y;
-        v_m(2, 0) = v.z;
-        v_m(3, 0) = 1;
-        v_m = cob * v_m;
-        v_m /= v_m(3,0);
-        thisFace = nface;
-        return Vec3f(v_m(0,0),v_m(1,0),v_m(2,0));
+        std::vector<int> face = model->face(nface);
+        Vec3f v = model->vert(face[nthvert * 3]);
+        Vec3f thisVert = transform_p(cob, v);
+        texture_coords[nthvert] = model->texture_vert(face[nthvert * 3 + 1]);
+        normal_vec[nthvert] = model->normal_vert(face[nthvert * 3 + 2]);
+        // normal_vec[nthvert] = transform_v(M_IT, normal_vec[nthvert]);
+        return thisVert;
     }
 
     virtual bool fragment(float *bc, TGAColor &color){
 
-        std::vector<int> face = model->face(thisFace);
-        Vec3f texture_coords_0 = model->texture_vert(face[1]);
-        Vec3f texture_coords_1 = model->texture_vert(face[4]);
-        Vec3f texture_coords_2 = model->texture_vert(face[7]);
-
-        float texture_x = bc[0] * texture_coords_0.x + bc[1] * texture_coords_1.x + bc[2] * texture_coords_2.x;
-        float texture_y = bc[0] * texture_coords_0.y + bc[1] * texture_coords_1.y + bc[2] * texture_coords_2.y;
-
-        // float intensity = bc[0] * varying_intensity[0] + bc[1] * varying_intensity[1] + bc[2] * varying_intensity[2];
-
-        // intensity = 1;
-
-        // if( intensity >= 0 && intensity < 0.25){
-        //     intensity = 0.25;
-        // } else if ( intensity >= 0.25 && intensity < 0.5){
-        //     intensity = 0.5;
-        // } else if( intensity >= 0.5 && intensity < 0.75){
-        //     intensity = 0.75;
-        // } else if( intensity >= 0.75 && intensity < 1){
-        //     intensity = 1;
-        // }
+        //get color
+        float texture_x = bc[0] * texture_coords[0].x + bc[1] * texture_coords[1].x + bc[2] * texture_coords[2].x;
+        float texture_y = bc[0] * texture_coords[0].y + bc[1] * texture_coords[1].y + bc[2] * texture_coords[2].y;
 
         texture_x = texture_x * (model->diffuse).get_width();
         texture_y = texture_y * (model->diffuse).get_height();
-
-
-        // //get the color on normal map
-        TGAColor normal = (model->normal_map).get(roundf(texture_x), roundf(texture_y));
-        Vec3f normal_vec = Vec3f((float)normal.r, (float)normal.g, (float)normal.b);
-
-        Matrix vn_m = Matrix(4,1);
-        vn_m(0,0) = normal_vec.x;
-        vn_m(1,0) = normal_vec.y;
-        vn_m(2,0) = normal_vec.z;
-        vn_m(3,0) = 1;
-        vn_m = cob_IT * vn_m;
-        vn_m = vn_m / vn_m(3,0);
-        normal_vec = Vec3f(vn_m(0,0),vn_m(1,0),vn_m(2,0));
-        // normal_vec.normalize();
-
-        Matrix light_m = Matrix(4,1);
-        light_m(0,0) = light_dir.x;
-        light_m(1,0) = light_dir.y;
-        light_m(2,0) = light_dir.z;
-        light_m(3,0) = 1;
-        light_m = cob * light_m;
-        light_m = light_m / light_m(3,0);
-        Vec3f light_vec = Vec3f(light_m(0,0),light_m(1,0),light_m(2,0));
-        // light_vec.normalize();
-
-        float intensity = light_vec.normalize() * normal_vec.normalize();
-        intensity = std::max(0.f, -intensity);
-       
-
         color = (model->diffuse).get(roundf(texture_x), roundf(texture_y));
+
+        //interpolate the vectors
+        // float normal_x = bc[0] * normal_vec[0].x + bc[1] * normal_vec[1].x + bc[2] * normal_vec[2].x;
+        // float normal_y = bc[0] * normal_vec[0].y + bc[1] * normal_vec[1].y + bc[2] * normal_vec[2].y;
+        // float normal_z = bc[0] * normal_vec[0].z + bc[1] * normal_vec[1].z + bc[2] * normal_vec[2].z;
+        // Vec3f normal_vec = Vec3f(normal_x, normal_y, normal_z);
+
+        
+
+        TGAColor normal_color = (model->normal_map).get(roundf(texture_x), roundf(texture_y));
+        Vec3f normal_vec = Vec3f(normal_color.r, normal_color.g, normal_color.b);
+
+        float intensity = std::max(0.f,  light_dir.normalize() * normal_vec.normalize());
+
         color = TGAColor((float)color.r * intensity, (float)color.g * intensity, (float)color.b * intensity, 255);
 
         return false;
@@ -134,6 +128,10 @@ int main(int argc, char** argv) {
     Shader shader;
     shader.cob = Viewport * Projection * ModelView;
     shader.cob_IT = shader.cob.inverse().transpose();
+
+    // shader.M = Projection * ModelView;
+    // shader.M_IT = shader.M.inverse().transpose();
+
     for (int i= 0; i < model->nfaces(); i++) { 
         std::vector<int> face = model->face(i);
         Vec3f screen_coords[3]; 
