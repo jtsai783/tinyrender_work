@@ -19,14 +19,14 @@ const int height = 800;
 Vec3f camera(1, 1, 3);
 Vec3f center(0, 0, 0);
 Vec3f up(0, 1, 0);
-Vec3f light_dir(1,1,1);
+Vec3f light_dir(0,0,1);
 
-// Vec3f cross2(Vec3f a, Vec3f b){
-//     float x = a.y * b.z - a.z * b.y;
-//     float y = a.z * b.x - a.x * b.z;
-//     float z = a.x * b.y - a.y * b.x;
-//     return Vec3f(x,y,z);
-// }
+Vec3f cross2(Vec3f a, Vec3f b){
+    float x = a.y * b.z - a.z * b.y;
+    float y = a.z * b.x - a.x * b.z;
+    float z = a.x * b.y - a.y * b.x;
+    return Vec3f(x,y,z);
+}
 
 Vec3f transform_v(Matrix m, Vec3f v){
     Matrix v_m = Matrix(4,1);
@@ -51,22 +51,26 @@ Vec3f transform_p(Matrix m, Vec3f v){
 
 struct Shader : public IShader {
     Vec3f texture_coords[3];
-    Vec3f normal_vec[3];
+    // Vec3f normal_vec[3];
     Matrix cob;
     Matrix cob_IT;
 
-    // Matrix M;
-    // Matrix M_IT;
+    Matrix M;
+    Matrix M_IT;
 
-    // Vec3f triangle_normal;
-    // Vec3f verts[3];
+    Vec3f triangle_normal;
+    Vec3f verts[3];
 
     virtual Vec3f vertex(int nface, int nthvert){
         std::vector<int> face = model->face(nface);
         Vec3f v = model->vert(face[nthvert * 3]);
-        Vec3f thisVert = transform_p(cob, v);
+        Vec3f thisVert = transform_p(Viewport * ModelView, v);
         texture_coords[nthvert] = model->texture_vert(face[nthvert * 3 + 1]);
-        normal_vec[nthvert] = model->normal_vert(face[nthvert * 3 + 2]);
+        verts[nthvert] = v;
+        if(nthvert == 2){
+           triangle_normal = cross2((verts[0] - verts[1]), (verts[0] - verts[2]));
+        }
+        // normal_vec[nthvert] = model->normal_vert(face[nthvert * 3 + 2]);
         // normal_vec[nthvert] = transform_v(M_IT, normal_vec[nthvert]);
         return thisVert;
     }
@@ -87,12 +91,32 @@ struct Shader : public IShader {
         // float normal_z = bc[0] * normal_vec[0].z + bc[1] * normal_vec[1].z + bc[2] * normal_vec[2].z;
         // Vec3f normal_vec = Vec3f(normal_x, normal_y, normal_z);
 
-        
+        // normal_x = ((normal_vec.normalize() + Vec3f(1.0,1.0,1.0)) * 0.5 * 255).x;
+        // normal_y = ((normal_vec.normalize() + Vec3f(1.0,1.0,1.0)) * 0.5 * 255).y;
+        // normal_z = ((normal_vec.normalize() + Vec3f(1.0,1.0,1.0)) * 0.5 * 255).z;
 
-        TGAColor normal_color = (model->normal_map).get(roundf(texture_x), roundf(texture_y));
-        Vec3f normal_vec = Vec3f(normal_color.r, normal_color.g, normal_color.b);
+        // TGAColor normal_color = TGAColor(roundf(normal_x), roundf(normal_y), roundf(normal_z), 255);
 
-        float intensity = std::max(0.f,  light_dir.normalize() * normal_vec.normalize());
+        // color = normal_color;
+
+        // TGAColor normal_color = (model->normal_map).get(roundf(texture_x), roundf(texture_y));
+        // Vec3f normal_vec = Vec3f(normal_color.r, normal_color.g, normal_color.b);
+        // float normal_x = (normal_vec.normalize() * 2 - Vec3f(1.0, 1.0, 1.0)).x;
+        // float normal_y = (normal_vec.normalize() * 2 - Vec3f(1.0, 1.0, 1.0)).y;
+        // float normal_z = (normal_vec.normalize() * 2 - Vec3f(1.0, 1.0, 1.0)).z;
+        // Vec3f normal_vec = Vec3f(normal_color.r, normal_color.g, normal_color.b);
+
+        // light_dir = transform_v(cob, light_dir);
+        // normal_vec = transform_v(cob_IT, normal_vec);
+
+        // float intensity = std::max(0.f,  light_dir.normalize() * normal_vec.normalize());
+
+        triangle_normal = transform_v(ModelView.inverse().transpose(), triangle_normal);
+        light_dir = transform_v(ModelView, light_dir);
+
+        float intensity = std::max(0.f,  triangle_normal.normalize() * light_dir.normalize());
+
+        // float intensity = 1;
 
         color = TGAColor((float)color.r * intensity, (float)color.g * intensity, (float)color.b * intensity, 255);
 
@@ -118,6 +142,7 @@ int main(int argc, char** argv) {
     view(center, camera, up);
     proj(-1.0/(camera - center).norm());
     clip(width/8, height/8, width*3/4, height*3/4);
+    clip(0, 0, width, height);
     light_dir.normalize();
 
 
@@ -129,8 +154,8 @@ int main(int argc, char** argv) {
     shader.cob = Viewport * Projection * ModelView;
     shader.cob_IT = shader.cob.inverse().transpose();
 
-    // shader.M = Projection * ModelView;
-    // shader.M_IT = shader.M.inverse().transpose();
+    shader.M = Projection * ModelView;
+    shader.M_IT = shader.M.inverse().transpose();
 
     for (int i= 0; i < model->nfaces(); i++) { 
         std::vector<int> face = model->face(i);
