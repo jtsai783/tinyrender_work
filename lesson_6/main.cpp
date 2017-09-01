@@ -16,10 +16,10 @@ TGAImage *texture_img = NULL;
 const int width  = 800;
 const int height = 800;
 
-Vec3f camera(1, 1, 3);
-Vec3f center(0, 0, 0);
-Vec3f up(0, 1, 0);
-Vec3f light_dir(0,0,1);
+const Vec3f camera(1, 1, 3);
+const Vec3f center(0, 0, 0);
+const Vec3f up(0, 1, 0);
+const Vec3f light_dir(1,1,1);
 
 Vec3f cross2(Vec3f a, Vec3f b){
     float x = a.y * b.z - a.z * b.y;
@@ -64,7 +64,7 @@ struct Shader : public IShader {
     virtual Vec3f vertex(int nface, int nthvert){
         std::vector<int> face = model->face(nface);
         Vec3f v = model->vert(face[nthvert * 3]);
-        Vec3f thisVert = transform_p(Viewport * ModelView, v);
+        Vec3f thisVert = transform_p(cob, v);
         texture_coords[nthvert] = model->texture_vert(face[nthvert * 3 + 1]);
         verts[nthvert] = v;
         if(nthvert == 2){
@@ -99,24 +99,24 @@ struct Shader : public IShader {
 
         // color = normal_color;
 
-        // TGAColor normal_color = (model->normal_map).get(roundf(texture_x), roundf(texture_y));
-        // Vec3f normal_vec = Vec3f(normal_color.r, normal_color.g, normal_color.b);
-        // float normal_x = (normal_vec.normalize() * 2 - Vec3f(1.0, 1.0, 1.0)).x;
-        // float normal_y = (normal_vec.normalize() * 2 - Vec3f(1.0, 1.0, 1.0)).y;
-        // float normal_z = (normal_vec.normalize() * 2 - Vec3f(1.0, 1.0, 1.0)).z;
-        // Vec3f normal_vec = Vec3f(normal_color.r, normal_color.g, normal_color.b);
+        TGAColor normal_color = (model->normal_map).get(roundf(texture_x), roundf(texture_y));
+        Vec3f normal_vec = Vec3f(normal_color.r, normal_color.g, normal_color.b);
+        normal_vec = normal_vec * (1.0/255.0) * 2.0 - Vec3f(1.0,1.0,1.0);
+
+        Vec3f temp_light = transform_v(M, light_dir);
+        Vec3f temp_norm = transform_v(M_IT, normal_vec);
+
+        // normal_vec = transform_p((Viewport * ModelView).inverse().transpose(), normal_vec);
 
         // light_dir = transform_v(cob, light_dir);
         // normal_vec = transform_v(cob_IT, normal_vec);
 
         // float intensity = std::max(0.f,  light_dir.normalize() * normal_vec.normalize());
 
-        triangle_normal = transform_v(ModelView.inverse().transpose(), triangle_normal);
-        light_dir = transform_v(ModelView, light_dir);
+        // triangle_normal = transform_v(ModelView.inverse().transpose(), triangle_normal);
+        // light_dir = transform_v(ModelView, light_dir);
 
-        float intensity = std::max(0.f,  triangle_normal.normalize() * light_dir.normalize());
-
-        // float intensity = 1;
+        float intensity = std::max(0.f,  temp_norm.normalize() * temp_light.normalize());
 
         color = TGAColor((float)color.r * intensity, (float)color.g * intensity, (float)color.b * intensity, 255);
 
@@ -142,8 +142,8 @@ int main(int argc, char** argv) {
     view(center, camera, up);
     proj(-1.0/(camera - center).norm());
     clip(width/8, height/8, width*3/4, height*3/4);
-    clip(0, 0, width, height);
-    light_dir.normalize();
+    // clip(0, 0, width, height);
+    // light_dir.normalize();
 
 
     // int *zbuffer = new int[width*height];
