@@ -61,6 +61,7 @@ struct Shader : public IShader {
     Vec3f vertex_normal[3];
     Vec3f verts[3];
     Vec3f original_normal[3];
+    Vec3f original_verts[3];
 
     Matrix TB;
     Matrix TBN;
@@ -73,13 +74,20 @@ struct Shader : public IShader {
         Vec3f normal = model->normal_vert(face[nthvert * 3 + 2]);
         vertex_normal[nthvert] = transform_v(M_IT, normal);
         verts[nthvert] = thisVert;
+        original_verts[nthvert] = v;
         if(nthvert == 2){
             Vec3f tri_edge1 = verts[1] - verts[0];
             Vec3f tri_edge2 = verts[2] - verts[0];
 
+            Vec3f orig_tri_edge1 = original_verts[1] - original_verts[0];
+            Vec3f orig_tri_edge2 = original_verts[2] - original_verts[0];
+
+            triangle_normal = cross2(orig_tri_edge1, orig_tri_edge2);
+            triangle_normal = transform_v(M_IT, triangle_normal);
+            triangle_normal = triangle_normal.normalize();
+
             Vec3f text_edge1 = texture_coords[1] - texture_coords[0];
             Vec3f text_edge2 = texture_coords[2] - texture_coords[0];
-
 
             Matrix tri_m(2,3);
             Matrix uv_m(2,2);
@@ -125,7 +133,10 @@ struct Shader : public IShader {
         //interpolate normal
         Vec3f n = vertex_normal[0] * bc[0] + vertex_normal[1] * bc[1] + vertex_normal[2] * bc[2];
 
+
         // Vec3f n = triangle_normal;
+        
+
         Vec3f t(TB(0, 0), TB(0, 1), TB(0, 2));
         Vec3f b(TB(1, 0), TB(1, 1), TB(1, 2));
 
@@ -151,9 +162,17 @@ struct Shader : public IShader {
 
         model_space_normal_vec = model_space_normal_vec.normalize();
 
+
+        Vec3f normal_color_vec = (model_space_normal_vec + Vec3f(1.0, 1.0, 1.0)) * 0.5 * 255.0;
+        TGAColor normal_vec_color(normal_color_vec.x, normal_color_vec.y, normal_color_vec.z, 255);
+
+        // color = normal_vec_color;
+
         Vec3f temp_light = transform_v(M, light_dir);
 
         float intensity = std::max(0.f,  model_space_normal_vec * temp_light.normalize());
+
+        // float intensity = 1;
 
         color = TGAColor((float)color.r * intensity, (float)color.g * intensity, (float)color.b * intensity, 255);
 
