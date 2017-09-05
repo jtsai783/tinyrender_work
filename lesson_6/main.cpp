@@ -168,13 +168,23 @@ struct Shader : public IShader {
 
         // color = normal_vec_color;
 
+        //specular
         Vec3f temp_light = transform_v(M, light_dir);
+        temp_light = temp_light.normalize();
 
-        float intensity = std::max(0.f,  model_space_normal_vec * temp_light.normalize());
+        Vec3f r = model_space_normal_vec * ( model_space_normal_vec * temp_light * 2.0 ) - temp_light;
+        r = r.normalize();
+
+        //get the spec value from spec map
+        TGAColor spec_color = (model->spec).get(roundf(texture_x), roundf(texture_y));
+        // float power = spec_color.val / 255.0;
+        // std::cout << spec_color.val << std::endl;
+        float spec = pow(std::max(r.z, 0.0f), spec_color.val);
+        float diff = std::max(0.f,  model_space_normal_vec * temp_light);
 
         // float intensity = 1;
 
-        color = TGAColor((float)color.r * intensity, (float)color.g * intensity, (float)color.b * intensity, 255);
+        color = TGAColor((float)color.r * (diff + 0.8 * spec) + 5.0, (float)color.g * (diff + 0.8 * spec) + 5.0, (float)color.b * (diff + 0.8 * spec) + 5.0, 255);
 
         return false;
     }

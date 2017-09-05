@@ -57,6 +57,9 @@ Model::Model(const char *filename) : verts_(), faces_() {
 
     normal_map.read_tga_file("obj/african_head_nm_tangent.tga");
     normal_map.flip_vertically();
+
+    spec.read_tga_file("obj/african_head_spec.tga");
+    spec.flip_vertically();
 }
 
 Model::~Model() {

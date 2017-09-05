@@ -24,6 +24,7 @@ public:
 	std::vector<int> face(int idx);
 	TGAImage diffuse;
 	TGAImage normal_map;
+	TGAImage spec;
 	// std::vector<int> texture_face(int idx);
 };
 
