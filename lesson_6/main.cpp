@@ -60,11 +60,10 @@ struct Shader : public IShader {
     Vec3f triangle_normal;
     Vec3f vertex_normal[3];
     Vec3f verts[3];
+    Vec3f original_normal[3];
 
-    Matrix A = Matrix(3,3);
-
-    Matrix iA = Matrix(3,1);
-    Matrix jA = Matrix(3,1);
+    Matrix TB;
+    Matrix TBN;
 
     virtual Vec3f vertex(int nface, int nthvert, TGAImage &image){
         std::vector<int> face = model->face(nface);
@@ -73,44 +72,31 @@ struct Shader : public IShader {
         texture_coords[nthvert] = model->texture_vert(face[nthvert * 3 + 1]);
         Vec3f normal = model->normal_vert(face[nthvert * 3 + 2]);
         vertex_normal[nthvert] = transform_v(M_IT, normal);
-        verts[nthvert] = v;
+        verts[nthvert] = thisVert;
         if(nthvert == 2){
-           //calculate the A matrix
-            Vec3f p0p1 = transform_p(M,verts[1]) - transform_p(M,verts[0]);
-            Vec3f p0p2 = transform_p(M,verts[2]) - transform_p(M,verts[0]);
-            // Vec3f p0p1 = verts[1] - verts[0];
-            // Vec3f p0p2 = verts[2] - verts[0];
-            A(0,0) = p0p1.x;
-            A(0,1) = p0p1.y;
-            A(0,2) = p0p1.z;
+            Vec3f tri_edge1 = verts[1] - verts[0];
+            Vec3f tri_edge2 = verts[2] - verts[0];
 
-            A(1,0) = p0p2.x;
-            A(1,1) = p0p2.y;
-            A(1,2) = p0p2.z;
+            Vec3f text_edge1 = texture_coords[1] - texture_coords[0];
+            Vec3f text_edge2 = texture_coords[2] - texture_coords[0];
 
-            A(2,0) = vertex_normal[2].x;
-            A(2,1) = vertex_normal[2].y;
-            A(2,2) = vertex_normal[2].z;
 
-            iA(0,0) = texture_coords[1].x - texture_coords[0].x;
-            iA(1,0) = texture_coords[2].x - texture_coords[0].x;
-            iA(2,0) = 0;
+            Matrix tri_m(2,3);
+            Matrix uv_m(2,2);
 
-            jA(0,0) = texture_coords[1].y - texture_coords[0].y;
-            jA(1,0) = texture_coords[2].y - texture_coords[0].y;
-            jA(2,0) = 0;
+            tri_m(0,0) = tri_edge1.x;
+            tri_m(0,1) = tri_edge1.y;
+            tri_m(0,2) = tri_edge1.z;
+            tri_m(1,0) = tri_edge2.x;
+            tri_m(1,1) = tri_edge2.y;
+            tri_m(1,2) = tri_edge2.z;
 
-            Matrix i = A.inverse() * iA;
-            Matrix j = A.inverse() * jA;
+            uv_m(0,0) = text_edge1.x;
+            uv_m(0,1) = text_edge1.y;
+            uv_m(1,0) = text_edge2.x;
+            uv_m(1,1) = text_edge2.y;
 
-            Vec3f i_vec(i(0,0), i(0,1), i(0,2));
-            i_vec = i_vec.normalize() * 30;
-
-            Vec2i p0 = Vec2i((int)thisVert.x, (int)thisVert.y);
-            Vec2i p1 = p0 + Vec2i(i_vec.x, i_vec.y);
-
-            line(p0, p1, image, green);
-
+            TB = uv_m.inverse() * tri_m;
 
         }
         return thisVert;
@@ -119,61 +105,55 @@ struct Shader : public IShader {
     virtual bool fragment(float *bc, TGAColor &color){
 
         //get color
-        float texture_x = bc[0] * texture_coords[0].x + bc[1] * texture_coords[1].x + bc[2] * texture_coords[2].x;
-        float texture_y = bc[0] * texture_coords[0].y + bc[1] * texture_coords[1].y + bc[2] * texture_coords[2].y;
+        Vec3f texture = texture_coords[0] * bc[0] + texture_coords[1] * bc[1] + texture_coords[2] * bc[2];
 
-        texture_x = texture_x * (model->diffuse).get_width();
-        texture_y = texture_y * (model->diffuse).get_height();
+        float texture_x = texture.x * (model->diffuse).get_width();
+        float texture_y = texture.y * (model->diffuse).get_height();
         color = (model->diffuse).get(roundf(texture_x), roundf(texture_y));
 
+        //get normal color
+        TGAColor normal_color = (model->normal_map).get(roundf(texture_x), roundf(texture_y));
+        Vec3f normal_map_vec = Vec3f(normal_color.r, normal_color.g, normal_color.b);
+        normal_map_vec = normal_map_vec * (1.0/255.0) * 2.0 - Vec3f(1.0, 1.0, 1.0);
+        normal_map_vec = normal_map_vec.normalize();
 
+        Matrix tangent_normal_matrix(1, 3);
+        tangent_normal_matrix(0,0) = normal_map_vec.x;
+        tangent_normal_matrix(0,1) = normal_map_vec.y;
+        tangent_normal_matrix(0,2) = normal_map_vec.z;
 
-        //setup A
+        //interpolate normal
         Vec3f n = vertex_normal[0] * bc[0] + vertex_normal[1] * bc[1] + vertex_normal[2] * bc[2];
-        // n = n.normalize();
 
-        // A(2,0) = n.x;
-        // A(2,1) = n.y;
-        // A(2,2) = n.z;
+        // Vec3f n = triangle_normal;
+        Vec3f t(TB(0, 0), TB(0, 1), TB(0, 2));
+        Vec3f b(TB(1, 0), TB(1, 1), TB(1, 2));
 
-        // Matrix i = A.inverse() * iA; 
-        // Matrix j = A.inverse() * jA;
+        t = t.normalize();
+        b = b.normalize();
+        n = n.normalize();
 
-        // //read tangent space normal from map
-        // TGAColor normal_color = (model->normal_map).get(roundf(texture_x), roundf(texture_y));
-        // Vec3f normal_vec = Vec3f(normal_color.r, normal_color.g, normal_color.b);
-        // normal_vec = normal_vec * (1.0/255.0) * 2.0 - Vec3f(1.0,1.0,1.0);
+        TBN(0,0) = t.x;
+        TBN(0,1) = t.y;
+        TBN(0,2) = t.z;
 
-        // Matrix Tan = Matrix(3,3);
-        // Tan(0,0) = i(0,0);
-        // Tan(0,1) = i(0,1);
-        // Tan(0,2) = i(0,2);
+        TBN(1,0) = b.x;
+        TBN(1,1) = b.y;
+        TBN(1,2) = b.z;
 
-        // Tan(1,0) = j(0,0);
-        // Tan(1,1) = j(0,1);
-        // Tan(1,2) = j(0,2);
+        TBN(2,0) = n.x;
+        TBN(2,1) = n.y;
+        TBN(2,2) = n.z;
 
-        // Tan(2,0) = n.x;
-        // Tan(2,1) = n.y;
-        // Tan(2,2) = n.z;
+        Matrix model_space_normal = tangent_normal_matrix * TBN;
 
-        // n = transform_v(Tan.transpose(), normal_vec);
+        Vec3f model_space_normal_vec = Vec3f(model_space_normal(0,0), model_space_normal(0,1), model_space_normal(0,2));
 
-        // n = (n + Vec3f(1.0,1.0,1.0)) * 0.5 * 255.0;
-
-        // std::cout << n << std::endl;
-
-        // color = TGAColor(n.x, n.y, n.z, 255);
+        model_space_normal_vec = model_space_normal_vec.normalize();
 
         Vec3f temp_light = transform_v(M, light_dir);
-        // Vec3f temp_norm = transform_v(M_IT, normal_vec);
 
-        // float intensity = std::max(0.f,  temp_norm.normalize() * temp_light.normalize());
-
-
-        float intensity = std::max(0.f,  n.normalize() * temp_light.normalize());
-
-        // float intensity = 1;
+        float intensity = std::max(0.f,  model_space_normal_vec * temp_light.normalize());
 
         color = TGAColor((float)color.r * intensity, (float)color.g * intensity, (float)color.b * intensity, 255);
 
@@ -206,6 +186,9 @@ int main(int argc, char** argv) {
 
     shader.M = Projection * ModelView;
     shader.M_IT = shader.M.inverse().transpose();
+
+    shader.TB = Matrix(2,3);
+    shader.TBN = Matrix(3,3);
 
     for (int i= 0; i < model->nfaces(); i++) { 
         std::vector<int> face = model->face(i);
