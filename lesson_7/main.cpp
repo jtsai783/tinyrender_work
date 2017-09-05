@@ -13,10 +13,12 @@ const TGAColor green = TGAColor(0,   255, 0,   255);
 Model *model = NULL;
 TGAImage *texture_img = NULL;
 
+float *shadowBuffer = NULL;
+
 const int width  = 2000;
 const int height = 2000;
 
-const Vec3f camera(1, 1, 3);
+const Vec3f camera(-1, 0, 3);
 const Vec3f center(0, 0, 0);
 const Vec3f up(0, 1, 0);
 const Vec3f light_dir(1,1,1);
@@ -62,8 +64,8 @@ struct DepthShader : public IShader{
 
     virtual bool fragment(float *bc, TGAColor &color){
         Vec3f p = verts[0] * bc[0] + verts[1] * bc[1] + verts[2] * bc[2];
-        color = green;
-        // color = TGAColor(255.0 * p.z/255.0 ,255.0 * p.z/255.0,255.0 * p.z/255.0, 255);
+        // std::cout << p.z << std::endl;
+        color = TGAColor(p.z, p.z, p.z, 255);
         return false;
     }
 };
@@ -84,6 +86,8 @@ struct Shader : public IShader {
 
     Matrix TB;
     Matrix TBN;
+
+    Matrix shadowTransform;
 
     virtual Vec3f vertex(int nface, int nthvert, TGAImage &image){
         std::vector<int> face = model->face(nface);
@@ -130,6 +134,13 @@ struct Shader : public IShader {
     }
 
     virtual bool fragment(float *bc, TGAColor &color){
+        Vec3f p = verts[0] * bc[0] + verts[1] * bc[1] + verts[2] * bc[2];
+        Vec3f shadowP = transform_p(shadowTransform, p);
+        int idx = int(shadowP.x) + int(shadowP.y) * width;
+        float shadow = .3+.7*(shadowBuffer[idx] < shadowP.z + 43.34);
+        // std::cout << shadow << std::endl;
+
+
 
         //get color
         Vec3f texture = texture_coords[0] * bc[0] + texture_coords[1] * bc[1] + texture_coords[2] * bc[2];
@@ -203,7 +214,7 @@ struct Shader : public IShader {
 
         // float intensity = 1;
 
-        color = TGAColor((float)color.r * (diff + 0.8 * spec) + 5.0, (float)color.g * (diff + 0.8 * spec) + 5.0, (float)color.b * (diff + 0.8 * spec) + 5.0, 255);
+        color = TGAColor((float)color.r * (diff + 0.8 * spec) * shadow + 5.0, (float)color.g * (diff + 0.8 * spec) * shadow + 5.0, (float)color.b * (diff + 0.8 * spec) * shadow + 5.0, 255);
 
         return false;
     }
@@ -219,9 +230,16 @@ int main(int argc, char** argv) {
 
 
     TGAImage image(width, height, TGAImage::RGB);
-    TGAImage zbuffer(width, height, TGAImage::GRAYSCALE);
-    TGAImage shadowBuffer(width, height, TGAImage::GRAYSCALE);
+    // TGAImage zbuffer(width, height, TGAImage::GRAYSCALE);
+    // TGAImage shadowBuffer(width, height, TGAImage::GRAYSCALE);
     TGAImage depth(width, height, TGAImage::RGB);
+
+
+    float *zbuffer = new float[width*height];
+    shadowBuffer   = new float[width*height];
+    for (int i=width*height; --i; ) {
+        zbuffer[i] = shadowBuffer[i] = -std::numeric_limits<float>::max();
+    }
 
     // image = TGAImage(width, height, TGAImage::RGB);
 
@@ -237,10 +255,10 @@ int main(int argc, char** argv) {
         for (int j=0; j<3; j++) { 
             screen_coords[j] = depthShader.vertex(i, j, image);
         }
-        triangle(zbuffer, screen_coords, depth, depthShader); 
+        triangle(shadowBuffer, screen_coords, depth, depthShader); 
     }
 
-
+    Matrix shadowView = Viewport * Projection * ModelView;
 
     view(center, camera, up);
     proj(-1.0/(camera - center).norm());
@@ -257,6 +275,8 @@ int main(int argc, char** argv) {
     shader.TB = Matrix(2,3);
     shader.TBN = Matrix(3,3);
 
+    shader.shadowTransform = shadowView * shader.cob.inverse();
+
     for (int i= 0; i < model->nfaces(); i++) { 
         std::vector<int> face = model->face(i);
         Vec3f screen_coords[3]; 
@@ -267,12 +287,12 @@ int main(int argc, char** argv) {
     }
 
     image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
-    zbuffer.flip_vertically();
+    // zbuffer.flip_vertically();
     image.write_tga_file("output.tga");
-    zbuffer.write_tga_file("zbuffer.tga");
+    // zbuffer.write_tga_file("zbuffer.tga");
 
-    shadowBuffer.flip_vertically();
-    shadowBuffer.write_tga_file("shadowBuffer.tga"); 
+    depth.flip_vertically();
+    depth.write_tga_file("shadowBuffer.tga"); 
 
     delete model;
     return 0;
