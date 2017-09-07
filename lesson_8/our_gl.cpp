@@ -65,11 +65,11 @@ void clip(int x, int y, int width, int height){
     Viewport = Matrix::createIdentity(4);
     Viewport(0,3) = x + width/2.0;
     Viewport(1,3) = y+ height/2.0;
-    Viewport(2,3) = 255/2.0;
+    Viewport(2,3) = 255.f/2.0;
 
     Viewport(0,0) = width / 2.0;
     Viewport(1,1) = height/2.0;
-    Viewport(2,2) = 255/2.0;
+    Viewport(2,2) = 255.f/2.0;
 }
 
 void proj(float coeff){
@@ -139,6 +139,7 @@ void triangle(float *zbuffer, Vec3f *pts, TGAImage &image, IShader &shader) {
 
             if((bc[0] >= 0) && (bc[1] >= 0) && (bc[2] >= 0)){
                 float z = bc[0] * pts[0].z + bc[1] * pts[1].z + bc[2] * pts[2].z;
+
                 float zb = zbuffer[x + y * image.get_width()];
                 // TGAColor zb = zbuffer.get(x, y);
                 // std::cout << zb.val << std::endl;

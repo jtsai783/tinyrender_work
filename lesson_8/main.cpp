@@ -16,11 +16,12 @@ Model *model = NULL;
 TGAImage *texture_img = NULL;
 
 float *shadowBuffer = NULL;
+float *aoBuffer2 = NULL;
 
 const int width  = 800;
 const int height = 800;
 
-const Vec3f camera(-1, 0, 3);
+const Vec3f camera(-0.5, 0.5, 3);
 const Vec3f center(0, 0, 0);
 const Vec3f up(0, 1, 0);
 const Vec3f light_dir(1,1,1);
@@ -233,7 +234,11 @@ struct Shader : public IShader {
 
         // float intensity = 1;
 
-        color = TGAColor((float)color.r * (diff + 0.8 * spec) * shadow + 5.0, (float)color.g * (diff + 0.8 * spec) * shadow + 5.0, (float)color.b * (diff + 0.8 * spec) * shadow + 5.0, 255);
+        //get ambient
+        float ambCoeff = aoBuffer2[(int)p.x + (int)p.y * width];
+        // ambCoeff = 1.0;
+
+        color = TGAColor((float)color.r * (diff + 0.8 * spec) * shadow + 5.0 * ambCoeff, (float)color.g * (diff + 0.8 * spec) * shadow + 5.0 * ambCoeff, (float)color.b * (diff + 0.8 * spec) * shadow + 5.0 * ambCoeff, 255);
 
         return false;
     }
@@ -245,34 +250,38 @@ float max_elevation_angle(float *buffer, int x, int y, float a){
     float x_f = (float)x;
     float y_f = (float)y;
 
-    float x_f_old;
-    float y_f_old;
+    // float x_f_old;
+    // float y_f_old;
 
     float max_angle = 0;
 
-    float bufferHeight = buffer[x + y * width];
+    float bufferHeight = buffer[x + y * width] / 255.0 * 2.0 - 1.0;
     // std::cout << bufferHeight << std::endl;
-    for(float p = 0; p < 1000.0; p+=1.0){
+    for(float p = 1.0; p < 1000.0; p+=1.0){
         // std::cout << max_angle * 57.2958 << std::endl;
-        x_f_old = x_f;
-        y_f_old = y_f;
+        // x_f_old = x_f;
+        // y_f_old = y_f;
         x_f = x_f + heading.x;
         y_f = y_f + heading.y;
+        // std::cout << x_f << " " << y_f << std::endl;
         if(x_f > width || x_f < 0 || y_f > height || y_f < 0) return max_angle;
-        if((int)x_f - (int)x_f_old == 0 && (int)y_f - (int)y_f_old == 0) continue;
+        // if((int)x_f - (int)x_f_old == 0 && (int)y_f - (int)y_f_old == 0) continue;
         //get the height
-        float neighborHeight = buffer[(int)x_f + (int)y_f * width];
-        // std::cout << "heighborheight" << neighborHeight << std::endl;
-        if(neighborHeight > bufferHeight){
+        float neighborHeight = buffer[(int)x_f + (int)y_f * width] / 255.0 * 2.0 - 1.0;
+        // std::cout << neighborHeight << " " << bufferHeight << std::endl;
+        // std::cout << neighborHeight - bufferHeight << std::endl;
+        // if(neighborHeight > bufferHeight){
+                    // std::cout << "heighborheight " << neighborHeight << " myheight " << bufferHeight << std::endl;
 
-            float diff = neighborHeight - bufferHeight;
+            float diff = (neighborHeight - bufferHeight);
 
             float angle = atanf(diff/p);
-            // std::cout << angle << std::endl;
+            // std::cout << p << std::endl;
+            // std::cout << angle * 57.2958 << std::endl;
             if(angle > max_angle){
                 max_angle = angle;
             }
-        }
+        // }
     }
     return max_angle;
 };
@@ -289,15 +298,16 @@ int main(int argc, char** argv) {
     // TGAImage zbuffer(width, height, TGAImage::GRAYSCALE);
     // TGAImage shadowBuffer(width, height, TGAImage::GRAYSCALE);
     TGAImage depth(width, height, TGAImage::RGB);
-    TGAImage aoimage(width, height, TGAImage::RGB);
+    TGAImage aoimage(width, height, TGAImage::GRAYSCALE);
 
     TGAImage aodebugbuffer(width, height, TGAImage::GRAYSCALE);
 
+    aoBuffer2 = new float[width*height];
     float *aobuffer = new float[width * height];
     float *zbuffer = new float[width*height];
     shadowBuffer   = new float[width*height];
     for (int i=width*height; --i; ) {
-        aobuffer[i] = zbuffer[i] = shadowBuffer[i] = -std::numeric_limits<float>::max();
+        aoBuffer2[i] = aobuffer[i] = zbuffer[i] = shadowBuffer[i] = -std::numeric_limits<float>::max();
     }
 
     // image = TGAImage(width, height, TGAImage::RGB);
@@ -338,6 +348,7 @@ int main(int argc, char** argv) {
     for(int x = 0; x < width ; x++){
         for(int y = 0; y < height; y++){
             float aobufferVal = aobuffer[x + y * width];
+            // std::cout << aobufferVal << std::endl;
             if(aobufferVal < 0){
                 aobufferVal = 0.0;
             } else {
@@ -351,52 +362,59 @@ int main(int argc, char** argv) {
         for(int y = 0; y < height; y++){
     // int x = width / 2;
     // int y = height / 2;
-            // if (aobuffer[x + y * width] < 0) continue;
+            if (aobuffer[x + y * width] < 0) continue;
             //emit 8 rays
             float total = 0;
             for(float a = 0; a < M_PI * 2 - 0.0001; a += M_PI/4){
+                // std::cout << a << std::endl;
             // float a = 135/57.2958;
+            // float a = 1.5708;
                 float max_angle = max_elevation_angle(aobuffer, x, y, a);
-                // std::cout << a * 57.2958 << std::endl;
+                // std::cout << "max_angle is " << max_angle * 57.2958 << std::endl;
+                // std::cout << "a is " << a << std::endl;
                 // std::cout << max_angle << std::endl << std::endl;
                 float diff = M_PI/2.0 - max_angle;
                 // std::cout << "angle diff" << M_PI/2.0 << std::endl << std::endl;
                 total += diff;
                 // std::cout << "angle total " << total * 57.2958 << std::endl << std::endl;
+                // std::cout << "total is " << total << std::endl;
             }
+            
+
 
             total = total / 8.0;
             total = total / (M_PI/2.0);
 
             // std::cout << "angle total ave" << total * 57.2958 << std::endl << std::endl;
-            // total = pow(total, 100.f);
-            std::cout << total << std::endl;
-            aoimage.set(x, y, TGAColor(total * 255, total * 255, total * 255, 255));
+            total = pow(total, 100.f);
+            
+            aoBuffer2[x + y * width] = total;
+            aoimage.set(x, y, TGAColor(total * 255, 255));
         }
     }
 
 
 
-    // Shader shader;
-    // shader.cob = Viewport * Projection * ModelView;
-    // shader.cob_IT = shader.cob.inverse().transpose();
+    Shader shader;
+    shader.cob = Viewport * Projection * ModelView;
+    shader.cob_IT = shader.cob.inverse().transpose();
 
-    // shader.M = Projection * ModelView;
-    // shader.M_IT = shader.M.inverse().transpose();
+    shader.M = Projection * ModelView;
+    shader.M_IT = shader.M.inverse().transpose();
 
-    // shader.TB = Matrix(2,3);
-    // shader.TBN = Matrix(3,3);
+    shader.TB = Matrix(2,3);
+    shader.TBN = Matrix(3,3);
 
-    // shader.shadowTransform = shadowView * shader.cob.inverse();
+    shader.shadowTransform = shadowView * shader.cob.inverse();
 
-    // for (int i= 0; i < model->nfaces(); i++) { 
-    //     std::vector<int> face = model->face(i);
-    //     Vec3f screen_coords[3]; 
-    //     for (int j=0; j<3; j++) { 
-    //         screen_coords[j] = shader.vertex(i, j, image);
-    //     }
-    //     triangle(zbuffer, screen_coords, image, shader); 
-    // }
+    for (int i= 0; i < model->nfaces(); i++) { 
+        std::vector<int> face = model->face(i);
+        Vec3f screen_coords[3]; 
+        for (int j=0; j<3; j++) { 
+            screen_coords[j] = shader.vertex(i, j, image);
+        }
+        triangle(zbuffer, screen_coords, image, shader); 
+    }
 
     image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
     // zbuffer.flip_vertically();
